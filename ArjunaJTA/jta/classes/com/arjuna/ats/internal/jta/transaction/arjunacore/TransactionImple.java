@@ -21,6 +21,7 @@ import com.arjuna.ats.arjuna.coordinator.RecordType;
 import jakarta.transaction.RollbackException;
 import jakarta.transaction.Status;
 import jakarta.transaction.SystemException;
+import jakarta.transaction.xa.ExtendedXAResource;
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -87,6 +88,11 @@ public class TransactionImple implements jakarta.transaction.Transaction,
 
         _txLocalResources = Collections.synchronizedMap(new HashMap());
     }
+
+	public TransactionImple(int timeout, boolean readOnly) {
+		this(timeout);
+		_readOnly = readOnly;
+	}
 
 	/**
 	 * Overloads Object.equals()
@@ -759,7 +765,18 @@ public class TransactionImple implements jakarta.transaction.Transaction,
 
 				return true;
 			}
-
+			
+			if(_readOnly && xaRes instanceof ExtendedXAResource exaRes) {
+				try {
+					if(!exaRes.setReadOnly(xid)) {
+						exaRes.rollback(xid);
+					}	
+				}
+				catch (XAException ex) {
+					throw ex; //TODO: any other behavior?
+				}
+			}
+			
             return false;
         }
 		catch (Exception e)
@@ -1738,6 +1755,11 @@ public class TransactionImple implements jakarta.transaction.Transaction,
         return Collections.EMPTY_MAP;
     }
 
+	public boolean isReadOnly()
+    {
+        return _readOnly;
+    }
+
     protected com.arjuna.ats.arjuna.AtomicAction _theTransaction;
 
 	private Hashtable _resources;
@@ -1778,4 +1800,6 @@ public class TransactionImple implements jakarta.transaction.Transaction,
 			.getCommitMarkableResourceJNDINames();
 
 	private static final boolean STRICTJTA12DUPLICATEXAENDPROTOERR = jtaPropertyManager.getJTAEnvironmentBean().isStrictJTA12DuplicateXAENDPROTOErr();
+
+	private boolean _readOnly = false;
 }

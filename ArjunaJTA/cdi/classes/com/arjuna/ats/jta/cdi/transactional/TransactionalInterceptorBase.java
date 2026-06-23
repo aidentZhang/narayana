@@ -25,6 +25,10 @@ import jakarta.interceptor.InvocationContext;
 import jakarta.transaction.Transaction;
 import jakarta.transaction.TransactionManager;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.TransactionalException;
+import jakarta.transaction.InvalidTransactionException;
+
+
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.security.PrivilegedAction;
@@ -71,6 +75,9 @@ public abstract class TransactionalInterceptorBase implements Serializable {
 
         boolean previousUserTransactionAvailability = setUserTransactionAvailable(userTransactionAvailable);
         try {
+            if(tx != null && tx.isReadOnly() != getTransactional(ic).isReadOnly()) {
+                throw new TransactionalException("isReadOnly() mismatch", new InvalidTransactionException());
+            }
             return doIntercept(transactionManager, tx, ic);
         } finally {
             resetUserTransactionAvailability(previousUserTransactionAvailability);

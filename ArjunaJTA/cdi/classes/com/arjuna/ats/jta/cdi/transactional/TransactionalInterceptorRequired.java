@@ -6,6 +6,8 @@
 
 package com.arjuna.ats.jta.cdi.transactional;
 
+import org.infinispan.transaction.xa.InvalidTransactionException;
+
 import jakarta.annotation.Priority;
 import jakarta.interceptor.AroundInvoke;
 import jakarta.interceptor.Interceptor;

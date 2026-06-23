@@ -76,6 +76,55 @@ public class BaseTransaction
 		TransactionImple.putTransaction(new TransactionImple(v));
 	}
 
+	public void begin(boolean readOnly) throws jakarta.transaction.NotSupportedException,
+			jakarta.transaction.SystemException
+	{
+		if (jtaLogger.logger.isTraceEnabled()) {
+            jtaLogger.logger.trace("BaseTransaction.begin");
+        }
+
+		/*
+		 * We can supported subtransactions, so should have the option to let
+		 * programmer use them. Strict conformance will always say no.
+		 */
+
+		if (!_supportSubtransactions)
+		{
+		    try
+		    {
+		        checkTransactionState();
+		    }
+		    catch (IllegalStateException e1)
+		    {
+		        NotSupportedException notSupportedException = new NotSupportedException(
+		                e1.getMessage());
+		        notSupportedException.initCause(e1);
+		        throw notSupportedException;
+		    }
+		    catch (Exception e2)
+		    {
+		        jakarta.transaction.SystemException systemException = new jakarta.transaction.SystemException(
+		                e2.toString());
+		        systemException.initCause(e2);
+		        throw systemException;
+		    }
+		}
+
+		Integer value = _timeouts.get();
+		int v;
+
+		if (value != null)
+		{
+			v = value.intValue();
+		}
+		else
+		    v = TxControl.getDefaultTimeout();
+
+		// TODO: set default timeout
+
+		TransactionImple.putTransaction(new TransactionImple(v, readOnly));
+	}
+	
 	/**
 	 * We will never throw a HeuristicRollbackException because if we get a
 	 * HeuristicRollback from a resource, and can successfully rollback the
@@ -284,6 +333,16 @@ public class BaseTransaction
         return task;
     }
 
+	public boolean isReadOnly() {
+		TransactionImple tx = TransactionImple.getTransaction();
+
+		if (tx != null)
+		{
+			return tx.isReadOnly();
+		}
+		return false;
+	}
+
 	private static final boolean _supportSubtransactions = jtaPropertyManager.getJTAEnvironmentBean().isSupportSubtransactions();
 
 	//The value zero is never stored, as it represents the need for using the default timeout.
@@ -303,7 +362,7 @@ public class BaseTransaction
 			return new Thread(r, name + "-Thread_" + counter.incrementAndGet());
 		}
 	}
-
+	
 	private static final ThreadFactory transactionThreadFactory = new NamedThreadFactory("Narayana-Transaction");
 
 	private static final ThreadPoolExecutor tpe = new ThreadPoolExecutor(1, _asyncCommitPoolSize, 10, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(3), transactionThreadFactory);
