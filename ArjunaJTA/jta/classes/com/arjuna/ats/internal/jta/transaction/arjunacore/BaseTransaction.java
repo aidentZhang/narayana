@@ -150,6 +150,11 @@ public class BaseTransaction
 					"BaseTransaction.commit - "
 							+ jtaLogger.i18NLogger.get_transaction_arjunacore_notx());
 
+		if (theTransaction.isReadOnly())
+			throw new IllegalStateException(
+					"BaseTransaction.commit - "
+							+ jtaLogger.i18NLogger.get_transaction_arjunacore_notx());
+
 		theTransaction.commitAndDisassociate();
 	}
 

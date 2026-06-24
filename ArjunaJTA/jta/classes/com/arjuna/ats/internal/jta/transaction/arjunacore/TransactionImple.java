@@ -765,15 +765,22 @@ public class TransactionImple implements jakarta.transaction.Transaction,
 
 				return true;
 			}
-			
+
+			/*
+			* We rollback all resources if in readOnly by default, which is why
+			* it is not necessary to handle resources which are not able to be
+			* set to readOnly
+			*/
 			if(_readOnly && xaRes instanceof ExtendedXAResource exaRes) {
 				try {
-					if(!exaRes.setReadOnly(xid)) {
-						exaRes.rollback(xid);
-					}	
+					exaRes.setReadOnly(xid);
 				}
 				catch (XAException ex) {
-					throw ex; //TODO: any other behavior?
+					if (arjPropertyManager.getCoreEnvironmentBean().isLogAndRethrow()) {
+						jtaLogger.i18NLogger.warn_transaction_arjunacore_xastart("TransactionImple.enlistResource - xa_setReadOnly or xa_rollback() ",
+								XAHelper.xidToString(xid), XAHelper.printXAErrorCode(ex), ex);
+					}
+					throw ex;
 				}
 			}
 			
