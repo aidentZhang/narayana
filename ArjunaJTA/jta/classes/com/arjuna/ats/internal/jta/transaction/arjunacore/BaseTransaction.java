@@ -338,16 +338,6 @@ public class BaseTransaction
         return task;
     }
 
-	public boolean isReadOnly() {
-		TransactionImple tx = TransactionImple.getTransaction();
-
-		if (tx != null)
-		{
-			return tx.isReadOnly();
-		}
-		return false;
-	}
-
 	private static final boolean _supportSubtransactions = jtaPropertyManager.getJTAEnvironmentBean().isSupportSubtransactions();
 
 	//The value zero is never stored, as it represents the need for using the default timeout.

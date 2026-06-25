@@ -82,6 +82,58 @@ public class BaseTransaction
 		}
 	}
 
+	public void begin (boolean readOnly) throws jakarta.transaction.NotSupportedException,
+			jakarta.transaction.SystemException
+	{
+		if (jtaxLogger.logger.isTraceEnabled()) {
+            jtaxLogger.logger.trace("BaseTransaction.begin");
+        }
+
+		/*
+		 * We can supported subtransactions, so should have the option to let
+		 * programmer use them. Strict conformance will always say no.
+		 */
+
+		if (!_supportSubtransactions)
+		{
+			try
+			{
+				checkTransactionState();
+			}
+			catch (IllegalStateException e1)
+			{
+                NotSupportedException notSupportedException = new NotSupportedException(e1.getMessage());
+                notSupportedException.initCause(e1);
+				throw notSupportedException;
+			}
+			catch (org.omg.CORBA.SystemException e2)
+			{
+                jakarta.transaction.SystemException systemException = new jakarta.transaction.SystemException(e2.toString());
+                systemException.initCause(e2);
+				throw systemException;
+			}
+		}
+
+		try
+		{
+			TransactionImple.putTransaction(new TransactionImple(readOnly));
+		}
+		catch (org.omg.CosTransactions.SubtransactionsUnavailable e3)
+		{
+			// shouldn't happen if we get here from the previous checks!
+
+            NotSupportedException notSupportedException = new NotSupportedException(e3.getMessage());
+            notSupportedException.initCause(e3);
+            throw notSupportedException;
+		}
+		catch (org.omg.CORBA.SystemException e4)
+		{
+            jakarta.transaction.SystemException systemException = new jakarta.transaction.SystemException(e4.toString());
+            systemException.initCause(e4);
+            throw systemException;
+		}
+	}
+
 	/**
 	 * We will never throw a HeuristicRollbackException because if we get a
 	 * HeuristicRollback from a resource, and can successfully rollback the
@@ -101,6 +153,11 @@ public class BaseTransaction
         }
 
 		TransactionImple theTransaction = TransactionImple.getTransaction();
+
+		if (theTransaction.isReadOnly())
+			throw new IllegalStateException(
+					"BaseTransaction.commit - "
+							+ jtaxLogger.i18NLogger.get_jtax_transaction_jts_illegalstate());
 
 		try
 		{

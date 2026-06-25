@@ -218,4 +218,14 @@ public class TransactionSynchronizationRegistryImple implements TransactionSynch
 
         return transactionImple;
     }
+
+    public boolean isReadOnly() {
+		TransactionImple tx = getTransactionImple();
+
+		if (tx != null)
+		{
+			return tx.isReadOnly();
+		}
+		return false;
+	}
 }

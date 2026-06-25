@@ -70,6 +70,15 @@ public abstract class BaseTransactionManagerDelegate implements TransactionManag
     }
 
     /**
+     * Begin a readOnly transaction and associate it with the current thread.
+     */
+    public void begin(boolean readOnly)
+        throws NotSupportedException, SystemException
+    {
+        transactionManager.begin(readOnly) ;
+    }
+
+    /**
      * Commit the current transaction and disassociate from the thread.
      */
     public void commit()

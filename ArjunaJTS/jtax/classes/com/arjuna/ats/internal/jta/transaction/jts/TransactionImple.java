@@ -19,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import jakarta.transaction.HeuristicMixedException;
 import jakarta.transaction.RollbackException;
 import jakarta.transaction.Status;
+import jakarta.transaction.xa.ExtendedXAResource;
+
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
 import javax.transaction.xa.Xid;
@@ -76,6 +78,51 @@ public class TransactionImple implements jakarta.transaction.Transaction,
 	{
 		this(new AtomicTransaction());
 
+		_theTransaction.begin();
+
+		try
+		{
+			TwoPhaseCoordinator theTx = null;
+
+			try
+			{
+				/*
+				 * If this is an imported transaction and we have just performed
+				 * interposition, then register a purely local Synchronization.
+				 * This gets us over a performance issue with JacORB.
+				 */
+
+				theTx = (TwoPhaseCoordinator) BasicAction.Current();
+
+				if (theTx != null)  // TM is local
+					theTx.addSynchronization(new LocalCleanupSynchronization(this));
+				else
+					registerSynchronization(new CleanupSynchronization(this));
+			}
+			catch (ClassCastException ex)
+			{
+				/*
+				 * Not a local/interposed transaction.
+				 */
+
+				registerSynchronization(new CleanupSynchronization(this));
+			}
+		}
+		catch (Exception ex)
+		{
+			/*
+			 * Could set rollback only, but let's take the memory leak hit for
+			 * now.
+			 */
+
+            jtaxLogger.i18NLogger.warn_jtax_transaction_jts_syncproblem(ex);
+		}
+	}
+
+	public TransactionImple (boolean readOnly) throws SubtransactionsUnavailable
+	{
+		this(new AtomicTransaction());
+		_readOnly = readOnly;
 		_theTransaction.begin();
 
 		try
@@ -199,6 +246,10 @@ public class TransactionImple implements jakarta.transaction.Transaction,
 
 		if (_theTransaction != null)
 		{   
+			if (_readOnly)
+				throw new IllegalStateException(
+						"TransactionImple.commit - "
+								+ jtaxLogger.i18NLogger.get_jtax_transaction_jts_illegalstate());
 			/*
 			 * Call end on any suspended resources. If this fails, then the
 			 * transaction will be rolled back.
@@ -840,6 +891,24 @@ public class TransactionImple implements jakarta.transaction.Transaction,
 				_duplicateResources.put(xaRes, new TxInfo(xid));
 
 				return true;
+			}
+
+			/*
+			* We rollback all resources if in readOnly by default, which is why
+			* it is not necessary to handle resources which are not able to be
+			* set to readOnly
+			*/
+			if(_readOnly && xaRes instanceof ExtendedXAResource exaRes) {
+				try {
+					exaRes.setReadOnly(xid);
+				}
+				catch (XAException ex) {
+					if (arjPropertyManager.getCoreEnvironmentBean().isLogAndRethrow()) {
+						jtaLogger.i18NLogger.warn_transaction_arjunacore_xastart("TransactionImple.enlistResource - xa_setReadOnly or xa_rollback() ",
+								XAHelper.xidToString(xid), XAHelper.printXAErrorCode(ex), ex);
+					}
+					throw ex;
+				}
 			}
 
             return false;
@@ -1878,6 +1947,10 @@ public class TransactionImple implements jakarta.transaction.Transaction,
         return Collections.EMPTY_MAP;
     }
 
+	public boolean isReadOnly() {
+		return _readOnly;
+	}
+
     protected AtomicTransaction _theTransaction;
 
 	private Hashtable _resources;
@@ -1907,5 +1980,6 @@ public class TransactionImple implements jakarta.transaction.Transaction,
     private static ConcurrentHashMap _transactions = new ConcurrentHashMap();
 
 	private static final boolean STRICTJTA12DUPLICATEXAENDPROTOERR = jtaPropertyManager.getJTAEnvironmentBean().isStrictJTA12DuplicateXAENDPROTOErr();
-
+	
+	private boolean _readOnly = false;
 }
