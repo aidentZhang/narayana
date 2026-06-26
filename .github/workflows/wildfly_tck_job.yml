@@ -1,9 +1,6 @@
 name: wildfly_tck_job
 
 on:
-  push:
-    branches:
-      - main # Update this to your active branch name to trigger on push
   workflow_dispatch:
     inputs:
       jdk_version:
@@ -27,12 +24,12 @@ on:
 
 # Only run the latest job
 concurrency:
-  group: 'as_tests @ ${{ github.workflow }} @ ${{ github.head_ref || github.ref }} @ jdk${{ inputs.jdk_version }}'
+  group: 'wildfly_tck_job @ ${{ github.workflow }} @ ${{ github.head_ref || github.ref }} @ jdk${{ inputs.jdk_version }}'
   cancel-in-progress: true
 
 jobs:
-  as_tests-test:
-    name: AS_TESTS axis with JDK ${{ inputs.jdk_version }}
+  wildfly_tck_job-test:
+    name: wildfly_tck_job with JDK ${{ inputs.jdk_version }}
     runs-on: ubuntu-latest
 
     steps:
@@ -73,6 +70,14 @@ jobs:
           rm -rf ~/.m2/repository/org/jboss/narayana
           rm -rf ~/.m2/repository/org/wildfly
 
+      - name: Build Narayana and WildFly
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          NARAYANA_BUILD=1 AS_BUILD=1 ./.github/scripts/narayana.sh
+          wildfly_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -f jboss-as/pom.xml | tr -d '%')
+          echo "JBOSS_HOME=${{ github.workspace }}/jboss-as/dist/target/wildfly-${wildfly_version}" >> $GITHUB_ENV
+
       - name: Build Jakarta EE Transactions
         run: |
           git clone https://github.com/jakartaee/transactions
@@ -82,8 +87,6 @@ jobs:
           git fetch origin pull/250/head
           git rebase FETCH_HEAD
           cd tcks/apis/transactions/bom
-          mvn clean install
-          cd ..
           mvn clean install
 
       - name: Run WildFly TCK Runners
@@ -113,7 +116,7 @@ jobs:
           echo "********************************************************************************"
 
           # Write to GitHub Actions Step Summary for UI visibility
-          echo "### TCK Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### TCK Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Completed:** ${completed}" >> $GITHUB_STEP_SUMMARY
           echo "- **Failures:** ${failures}" >> $GITHUB_STEP_SUMMARY
           echo "- **Errors:** ${errors}" >> $GITHUB_STEP_SUMMARY
