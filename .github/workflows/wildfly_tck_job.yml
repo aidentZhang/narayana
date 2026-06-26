@@ -24,12 +24,12 @@ on:
 
 # Only run the latest job
 concurrency:
-  group: 'as_tests @ ${{ github.workflow }} @ ${{ github.head_ref || github.ref }} @ jdk${{ inputs.jdk_version }}'
+  group: 'wildfly_tck_job @ ${{ github.workflow }} @ ${{ github.head_ref || github.ref }} @ jdk${{ inputs.jdk_version }}'
   cancel-in-progress: true
 
 jobs:
-  as_tests-test:
-    name: AS_TESTS axis with JDK ${{ inputs.jdk_version }}
+  wildfly_tck_job-test:
+    name: wildfly_tck_job with JDK ${{ inputs.jdk_version }}
     runs-on: ubuntu-latest
 
     steps:
@@ -70,6 +70,13 @@ jobs:
           rm -rf ~/.m2/repository/org/jboss/narayana
           rm -rf ~/.m2/repository/org/wildfly
 
+      - name: Build Narayana
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          NARAYANA_BUILD=1 AS_BUILD=0 ./.github/scripts/narayana.sh
+          echo "narayana_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -f pom.xml | tr -d '%')" >> $GITHUB_ENV
+
       - name: Build Jakarta EE Transactions
         run: |
           git clone https://github.com/jakartaee/transactions
@@ -80,7 +87,7 @@ jobs:
         run: |
           git clone https://github.com/wildfly/wildfly-tck-runners
           cd wildfly-tck-runners/jakarta-ee-tck-runners/transactions-tck
-          mvn clean install -Pappclient -P'!download-tck'
+          mvn clean install -Pappclient -P'!download-tck' -Dversion.org.jboss.narayana=${narayana_version}
 
       - name: Report TCK Results
         if: always()
