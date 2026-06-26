@@ -1,0 +1,113 @@
+name: wildfly_tck_job
+
+on:
+  workflow_dispatch:
+    inputs:
+      jdk_version:
+        description: 'JDK version'
+        required: true
+        type: string
+      pull_request_repo:
+        description: 'Repository to check out'
+        required: true
+        type: string
+        default: 'jbosstm/narayana'
+      pull_request_ref:
+        description: 'Branch or commit to test'
+        required: true
+        type: string
+      environment_variables:
+        description: 'Environment variables'
+        required: false
+        type: string
+        default: '{}'
+
+# Only run the latest job
+concurrency:
+  group: 'as_tests @ ${{ github.workflow }} @ ${{ github.head_ref || github.ref }} @ jdk${{ inputs.jdk_version }}'
+  cancel-in-progress: true
+
+jobs:
+  as_tests-test:
+    name: AS_TESTS axis with JDK ${{ inputs.jdk_version }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Load Dynamic Environment Variables
+        uses: actions/github-script@v9
+        if: ${{ inputs.environment_variables != '' && inputs.environment_variables != '{}' }}
+        env:
+          ENV_JSON: ${{ inputs.environment_variables }}
+        with:
+          script: |
+            const envs = JSON.parse(process.env.ENV_JSON);
+            for (const [key, value] of Object.entries(envs)) {
+              core.exportVariable(key, value);
+              core.info(`Set ${key}=${value}`);
+            }
+
+      - name: Log run context
+        run: |
+          echo "Triggered by: ${{ github.event_name }}"
+          echo "Repository: ${{ inputs.pull_request_repo || github.repository }}"
+          echo "Branch/Ref: ${{ inputs.pull_request_ref || github.ref }}"
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          repository: '${{ inputs.pull_request_repo || github.repository }}'
+          ref: ${{ inputs.pull_request_ref || github.ref }}
+
+      - name: Set up JDK ${{ inputs.jdk_version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.jdk_version }}
+          cache: 'maven'
+
+      - name: Remove Narayana and WildFly from the Maven cache
+        run: |
+          rm -rf ~/.m2/repository/org/jboss/narayana
+          rm -rf ~/.m2/repository/org/wildfly
+
+      - name: Build Jakarta EE Transactions
+        run: |
+          git clone https://github.com/jakartaee/transactions
+          cd transactions/tck/apis/transactions
+          mvn clean install
+
+      - name: Run WildFly TCK Runners
+        run: |
+          git clone https://github.com/wildfly/wildfly-tck-runners
+          cd wildfly-tck-runners/jakarta-ee-tck-runners/transactions-tck
+          mvn clean install -Pappclient -P'!download-tck'
+
+      - name: Report TCK Results
+        if: always()
+        run: |
+          failsafe="wildfly-tck-runners/jakarta-ee-tck-runners/transactions-tck/transactions-tck-runner/target/failsafe-reports/failsafe-summary.xml"
+
+          if [ ! -f "$failsafe" ]; then
+            echo "Error: failsafe-summary.xml not found. The build likely failed before tests completed."
+            exit 1
+          fi
+
+          completed=$(sed -n 's:.*<completed>\(.*\)</completed>.*:\1:p' "$failsafe")
+          errors=$(sed -n 's:.*<errors>\(.*\)</errors>.*:\1:p' "$failsafe")
+          failures=$(sed -n 's:.*<failures>\(.*\)</failures>.*:\1:p' "$failsafe")
+
+          echo "********************************************************************************"
+          echo "Completed running ${completed} tests."
+          echo "Number of Tests Failed   = ${failures}"
+          echo "Number of Tests with Errors = ${errors}"
+          echo "********************************************************************************"
+
+          # Write to GitHub Actions Step Summary for UI visibility
+          echo "### TCK Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Completed:** ${completed}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failures:** ${failures}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Errors:** ${errors}" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${failures}" != "0" ] || [ "${errors}" != "0" ]; then
+            exit 1
+          fi
