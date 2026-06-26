@@ -70,14 +70,6 @@ jobs:
           rm -rf ~/.m2/repository/org/jboss/narayana
           rm -rf ~/.m2/repository/org/wildfly
 
-      - name: Build Narayana and WildFly
-        run: |
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git config --global user.name "github-actions[bot]"
-          NARAYANA_BUILD=1 AS_BUILD=1 ./.github/scripts/narayana.sh
-          wildfly_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -f jboss-as/pom.xml | tr -d '%')
-          echo "JBOSS_HOME=${{ github.workspace }}/jboss-as/dist/target/wildfly-${wildfly_version}" >> $GITHUB_ENV
-
       - name: Build Jakarta EE Transactions
         run: |
           git clone https://github.com/jakartaee/transactions
@@ -88,6 +80,14 @@ jobs:
           git rebase FETCH_HEAD
           cd tcks/apis/transactions/bom
           mvn clean install
+
+      - name: Build Narayana and WildFly
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          NARAYANA_BUILD=1 AS_BUILD=1 ./.github/scripts/narayana.sh
+          wildfly_version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout -f jboss-as/pom.xml | tr -d '%')
+          echo "JBOSS_HOME=${{ github.workspace }}/jboss-as/dist/target/wildfly-${wildfly_version}" >> $GITHUB_ENV
 
       - name: Run WildFly TCK Runners
         run: |
