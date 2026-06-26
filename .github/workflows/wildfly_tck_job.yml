@@ -78,7 +78,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git fetch origin pull/250/head
           git rebase FETCH_HEAD
+          mvn clean install
           cd tcks/apis/transactions/bom
+          mvn clean install
+          cd ..
           mvn clean install
 
       - name: Build Narayana and WildFly
