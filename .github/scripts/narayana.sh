@@ -162,7 +162,7 @@ function clone_as {
   else
     echo "Cloning AS sources from https://github.com/jbosstm/jboss-as.git"
     echo "First time checkout of WildFly"
-    git clone https://github.com/jbosstm/jboss-as.git -o jbosstm
+    git clone https://github.com/aidentzhang/jboss-as.git -o jbosstm
     [ $? -eq 0 ] || fatal "git clone https://github.com/jbosstm/jboss-as.git failed"
 
     cd jboss-as
