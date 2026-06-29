@@ -44,13 +44,13 @@ public class UserTransactionImple extends BaseTransaction
         return new Reference(this.getClass().getCanonicalName(), this.getClass().getCanonicalName(), null);
     }
 
-    public boolean isReadOnly() {
-		TransactionImple tx = TransactionImple.getTransaction();
+    public boolean isReadOnly() throws jakarta.transaction.SystemException {
+  TransactionImple tx = TransactionImple.getTransaction();
 
-		if (tx != null)
-		{
-			return tx.isReadOnly();
-		}
-		return false;
-	}
+  if (tx != null)
+  {
+   return tx.isReadOnly();
+  }
+  return false;
+ }
 }

@@ -1947,7 +1947,7 @@ public class TransactionImple implements jakarta.transaction.Transaction,
         return Collections.EMPTY_MAP;
     }
 
-	public boolean isReadOnly() {
+	public boolean isReadOnly() throws jakarta.transaction.SystemException {
 		return _readOnly;
 	}
 

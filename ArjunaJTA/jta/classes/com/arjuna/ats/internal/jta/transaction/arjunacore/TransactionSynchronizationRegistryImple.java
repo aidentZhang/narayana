@@ -218,12 +218,16 @@ public class TransactionSynchronizationRegistryImple implements TransactionSynch
     }
 
     public boolean isReadOnly() {
-		TransactionImple tx = getTransactionImple();
+  TransactionImple tx = getTransactionImple();
 
-		if (tx != null)
-		{
-			return tx.isReadOnly();
-		}
-		return false;
-	}
+  if (tx != null)
+  {
+   try {
+    return tx.isReadOnly();
+   } catch (SystemException e) {
+    throw new IllegalStateException("Could not determine if transaction is read-only", e);
+   }
+  }
+  return false;
+ }
 }

@@ -1762,10 +1762,10 @@ public class TransactionImple implements jakarta.transaction.Transaction,
         return Collections.EMPTY_MAP;
     }
 
-	public boolean isReadOnly()
-    {
-        return _readOnly;
-    }
+	public boolean isReadOnly() throws SystemException
+	   {
+	       return _readOnly;
+	   }
 
     protected com.arjuna.ats.arjuna.AtomicAction _theTransaction;
 
