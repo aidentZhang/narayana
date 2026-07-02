@@ -70,7 +70,7 @@ jobs:
           rm -rf ~/.m2/repository/org/jboss/narayana
           rm -rf ~/.m2/repository/org/wildfly
 
-      - name: Build Jakarta EE Transactions
+      - name: Build Jakarta EE Transactions and wildfly-transaction-client
         run: |
           git clone https://github.com/jakartaee/transactions
           cd transactions
@@ -82,6 +82,10 @@ jobs:
           cd tcks/apis/transactions/bom
           mvn clean install
           cd ..
+          mvn clean install
+          cd ../../../..
+          git clone https://github.com/aidentZhang/wildfly-transaction-client
+          cd wildfly-transaction-client
           mvn clean install
 
       - name: Build Narayana and WildFly
