@@ -21,6 +21,25 @@ on:
         required: false
         type: string
         default: '{}'
+  workflow_call:
+    inputs:
+      jdk_version:
+        description: 'JDK version'
+        required: true
+        type: string
+      pull_request_repo:
+        description: 'Repository to check out'
+        required: false
+        type: string
+      pull_request_ref:
+        description: 'Branch or commit to test'
+        required: false
+        type: string
+      environment_variables:
+        description: 'Environment variables'
+        required: false
+        type: string
+        default: '{}'
 
 # Only run the latest job
 concurrency:

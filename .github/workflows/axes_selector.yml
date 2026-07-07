@@ -55,6 +55,11 @@ on:
         description: 'PERFORMANCE testing axis'
         required: true
         type: boolean
+      WILDFLY_TCK:
+        description: 'WILDFLY_TCK testing axis'
+        required: false
+        type: boolean
+        default: false
       postgres:
         description: 'PostgreSQL will be used for the DB_TESTS testing axis.'
         required: false
@@ -147,6 +152,11 @@ on:
         description: 'PERFORMANCE testing axis'
         required: true
         type: boolean
+      WILDFLY_TCK:
+        description: 'WILDFLY_TCK testing axis'
+        required: false
+        type: boolean
+        default: false
       enabled_databases:
         description: 'The collection of databases to test against'
         required: false
@@ -178,6 +188,7 @@ jobs:
       JACOCO: ${{ steps.parse.outputs.JACOCO || steps.set-axes-inputs.outputs.JACOCO || inputs.JACOCO }}
       DB_TESTS: ${{ steps.parse.outputs.DB_TESTS || steps.set-axes-inputs.outputs.DB_TESTS || inputs.DB_TESTS }}
       PERFORMANCE: ${{ steps.parse.outputs.PERFORMANCE || steps.set-axes-inputs.outputs.PERFORMANCE || inputs.PERFORMANCE }}
+      WILDFLY_TCK: ${{ steps.parse.outputs.WILDFLY_TCK || steps.set-axes-inputs.outputs.WILDFLY_TCK || inputs.WILDFLY_TCK }}
       enabled_databases: ${{ steps.parse.outputs.enabled_databases || steps.set-axes-inputs.outputs.enabled_databases || inputs.enabled_databases }}
       jdk_versions: ${{ steps.parse.outputs.jdk_versions || steps.set-axes-inputs.outputs.jdk_versions || inputs.jdk_versions }}
       environment_variables: ${{ steps.parse.outputs.environment_variables || steps.set-axes-inputs.outputs.environment_variables || inputs.environment_variables }}
@@ -211,7 +222,8 @@ jobs:
               'QA_JTS_OPENJDKORB',
               'JACOCO',
               'DB_TESTS',
-              'PERFORMANCE'
+              'PERFORMANCE',
+              'WILDFLY_TCK'
             ];
             
             // Convert '! AXIS' to '!AXIS'
@@ -323,6 +335,7 @@ jobs:
             core.setOutput('JACOCO', '${{ inputs.JACOCO }}');
             core.setOutput('DB_TESTS', '${{ inputs.DB_TESTS }}');
             core.setOutput('PERFORMANCE', '${{ inputs.PERFORMANCE }}');
+            core.setOutput('WILDFLY_TCK', '${{ inputs.WILDFLY_TCK }}');
             if (${{ inputs.DB_TESTS }}) {
               // Creates enabled_databases
               const selected_databases = [
@@ -425,6 +438,19 @@ jobs:
     needs: axes_selector
     if: ${{ needs.axes_selector.outputs.PERFORMANCE == 'true' }}
     uses: ./.github/workflows/performance.yml
+    strategy:
+      matrix:
+        jdk_version: ${{ fromJSON(needs.axes_selector.outputs.jdk_versions) }}
+    with:
+      jdk_version: ${{ matrix.jdk_version }}
+      pull_request_ref: ${{ needs.axes_selector.outputs.pr_ref }}
+      pull_request_repo: ${{ needs.axes_selector.outputs.pr_repo }}
+      environment_variables: ${{ needs.axes_selector.outputs.environment_variables }}
+
+  WILDFLY_TCK:
+    needs: axes_selector
+    if: ${{ needs.axes_selector.outputs.WILDFLY_TCK == 'true' }}
+    uses: ./.github/workflows/wildfly_tck_job.yml
     strategy:
       matrix:
         jdk_version: ${{ fromJSON(needs.axes_selector.outputs.jdk_versions) }}
